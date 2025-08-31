@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ title if title else 'Local Photo Album' }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@600;700&display=swap" rel="stylesheet">
+  </head>
+  <body>
+    <div class="container">
+      <div class="header">
+        <div class="title"><a href="{{ url_for('albums') }}">📸 Local Photo Album</a></div>
+        <div class="right text-muted">Running locally</div>
+      </div>
+
+      <div class="main">
+        <div class="content">
+          {% block content %}{% endblock %}
+        </div>
+        <aside class="sidebar">
+          <div class="card" style="position:sticky;top:16px;">
+            <div class="sidebar-section">
+              <div class="sidebar-title">Albums</div>
+              {% if sidebar_albums %}
+              <ul class="side-list">
+                {% for a in sidebar_albums %}
+                <li class="{% if sidebar_current_album and a.id==sidebar_current_album.id %}active{% endif %}">
+                  <a href="{{ url_for('album_home', album_id=a.id) }}">{{ a.name }}</a>
+                </li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <div class="text-muted">No albums yet.</div>
+              {% endif %}
+            </div>
+            {% if sidebar_current_album %}
+            <div class="sidebar-section" style="margin-top:12px;">
+              <div class="sidebar-title">Days in {{ sidebar_current_album.name }}</div>
+              {% if sidebar_days %}
+              <ul class="side-list">
+                <li><a href="{{ url_for('album_all', album_id=sidebar_current_album.id) }}">See all</a></li>
+                {% for d in sidebar_days %}
+                <li><a href="{{ url_for('album_day', album_id=sidebar_current_album.id, day_label=d) }}">{{ d }}</a></li>
+                {% endfor %}
+              </ul>
+              {% else %}
+              <div class="text-muted">No day folders.</div>
+              {% endif %}
+            </div>
+            {% endif %}
+          </div>
+        </aside>
+      </div>
+
+      <div class="footer-meta">Created by {{ config.SITE_AUTHOR }} • {{ config.SITE_CREATED_ON }}</div>
+      <div class="footer-hint">Tip: Use ← and → to navigate photos.</div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  </body>
+</html>

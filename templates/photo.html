@@ -1,0 +1,83 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="viewer card" data-photo-id="{{ photo.id }}">
+  <div class="viewer-header">
+    <div class="viewer-title" style="flex:1;">
+      <label class="label">Photo title</label>
+      <input id="photo-title" type="text" value="{{ photo.user_title or '' }}" placeholder="Enter a title for this photo">
+    </div>
+    <div class="viewer-filename">
+      {{ photo.filename }}
+      <div id="save-status" class="text-muted"></div>
+    </div>
+  </div>
+
+  <div class="viewer-toolbar">
+    <button class="zoom-btn" id="zoom-out">−</button>
+    <button class="zoom-btn" id="zoom-in">+</button>
+    <button class="zoom-btn" id="zoom-reset">Reset</button>
+    <span class="text-muted" id="zoom-level" style="margin-left:6px;">100%</span>
+  </div>
+
+  <div class="viewer-img-wrap">
+    {% if prev_id %}
+    <div class="nav-arrow nav-left" id="nav-prev" data-href="{{ url_for('photo_view', photo_id=prev_id, context=context) }}">◀</div>
+    {% endif %}
+    {% if next_id %}
+    <div class="nav-arrow nav-right" id="nav-next" data-href="{{ url_for('photo_view', photo_id=next_id, context=context) }}">▶</div>
+    {% endif %}
+    <img class="viewer-img" src="{{ url_for('photo_raw', photo_id=photo.id) }}" alt="{{ photo.user_title or photo.filename }}">
+  </div>
+
+  <div class="section">
+    <label class="label" for="photo-description">Description</label>
+    <textarea id="photo-description" placeholder="Add your notes here...">{{ photo.user_description or '' }}</textarea>
+  </div>
+
+  <div class="section" style="display:flex;justify-content:space-between;align-items:center;">
+    <button class="btn" id="set-cover-btn" title="Use this as album cover">Set as album cover</button>
+    <button class="btn" id="save-btn">Save</button>
+  </div>
+
+  <div class="section">
+    <div class="label">Location</div>
+    {% if photo.gps_lat and photo.gps_lon %}
+      <div id="map" style="width:100%;height:320px;border-radius:12px;"></div>
+      <div class="text-muted" style="margin-top:6px;">Lat: {{ '%.6f'|format(photo.gps_lat) }}, Lon: {{ '%.6f'|format(photo.gps_lon) }}</div>
+      <script>
+        (function(){
+          const lat = {{ photo.gps_lat|tojson }};
+          const lon = {{ photo.gps_lon|tojson }};
+          const map = L.map('map', {scrollWheelZoom:false}).setView([lat, lon], 13);
+          L.tileLayer('{{ config.TILE_URL_TEMPLATE }}', { attribution: '&copy; OpenStreetMap contributors' }).addTo(map);
+          L.marker([lat, lon]).addTo(map);
+        })();
+      </script>
+    {% else %}
+      <div class="text-muted">No GPS data found for this photo.</div>
+    {% endif %}
+  </div>
+</div>
+
+<script>document.body.dataset.photoId = "{{ photo.id }}";</script>
+<script src="{{ url_for('static', filename='js/viewer.js') }}"></script>
+{% endblock %}
+
+
+<script>
+  document.getElementById('set-cover-btn')?.addEventListener('click', async ()=>{
+    try{
+      const albumId = {{ album.id }};
+      const photoId = {{ photo.id }};
+      const res = await fetch(`/api/albums/${albumId}/thumbnail`, {
+        method:'PATCH',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({photo_id: photoId})
+      });
+      if(!res.ok) throw new Error('Failed');
+      alert('Album cover updated!');
+    }catch(e){
+      alert('Could not set album cover.');
+    }
+  });
+</script>

@@ -1,0 +1,22 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="card" style="margin-bottom:12px;">
+  <div class="flex" style="justify-content:space-between;">
+    <div style="font-weight:700;">{{ album.name }} — {% if mode=='all' %}All Photos{% else %}Day {{ grouped[0][0] }}{% endif %}</div>
+    <a class="btn" href="{{ url_for('album_home', album_id=album.id) }}">Back to days</a>
+  </div>
+</div>
+
+{% for day, photos in grouped %}
+<div class="group">
+  <div class="group-title">{{ day }}</div>
+  <div class="photo-grid">
+    {% for p in photos %}
+    <a href="{{ url_for('photo_view', photo_id=p.id, context=('day:'+day) if mode=='day' else 'all') }}">
+      <img loading="lazy" src="{{ url_for('photo_raw', photo_id=p.id) }}" alt="{{ p.user_title or p.filename }}">
+    </a>
+    {% endfor %}
+  </div>
+</div>
+{% endfor %}
+{% endblock %}

@@ -1,0 +1,155 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="card" style="margin-bottom:16px;">
+  <div class="flex">
+    <div style="font-weight:700;">Albums</div>
+  </div>
+  <div class="flex" style="margin-top:10px;">
+    <input id="album-path" class="input" placeholder="Choose a folder or paste a path" />
+    <button class="btn" id="btn-browse" type="button">Browse…</button>
+    <button class="btn" id="btn-add">Add / Rescan Album</button>
+  </div>
+</div>
+
+<div class="grid">
+  {% for a in albums %}
+  <div class="card album-tile">
+    <div class="flex" style="justify-content:space-between;align-items:center;">
+      <div class="album-name">{{ a.name }}</div>
+      <button class="btn" title="Album info" onclick="openMeta({{a.id}})">?</button>
+    </div>
+    {% set cover_id = covers.get(a.id) %}
+    {% if cover_id %}
+      <a href="{{ url_for('album_home', album_id=a.id) }}">
+        <img class="album-thumb" src="{{ url_for('photo_raw', photo_id=cover_id) }}" alt="Cover of {{ a.name }}">
+      </a>
+    {% else %}
+      <div class="album-thumb placeholder"></div>
+    {% endif %}
+    <div class="album-name">{{ a.name }}</div>
+    <div class="flex">
+      <a class="btn" href="{{ url_for('album_home', album_id=a.id) }}">Open</a>
+      <div class="right">
+        <details>
+          <summary class="btn">Remove...</summary>
+          <div style="margin-top:8px;display:flex;gap:8px;">
+            <button class="btn" onclick="removeAlbum({{a.id}}, 'archive')">Remove (keep metadata)</button>
+            <button class="btn btn-danger" onclick="removeAlbum({{a.id}}, 'delete')">Remove &amp; delete metadata</button>
+          </div>
+        </details>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<script>
+document.getElementById('btn-add').addEventListener('click', async ()=>{
+  const path = document.getElementById('album-path').value.trim();
+  if(!path){ alert('Please enter a path.'); return; }
+  try{
+    const res = await postJSON('{{ url_for("api_albums_add") }}', {path});
+    alert('Scanned ' + res.photos_scanned + ' photos for album "'+res.album_name+'".');
+    window.location.reload();
+  }catch(err){
+    alert('Error: ' + err.message);
+  }
+});
+
+async function removeAlbum(id, mode){
+  if(mode==='archive'){
+    if(!confirm('Remove album from view (metadata kept)?')) return;
+  }else{
+    if(!confirm('Remove album and DELETE all its metadata? Files on disk are untouched.')) return;
+  }
+  try{
+    await postJSON(`/api/albums/${id}/remove`, {mode});
+    window.location.reload();
+  }catch(err){
+    alert('Error: ' + err.message);
+  }
+}
+</script>
+<script src="{{ url_for('static', filename='js/albums.js') }}"></script>
+
+<!-- Folder picker modal -->
+<div id="fs-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-backdrop"></div>
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="modal-title">Choose a folder</div>
+      <button class="btn" id="fs-close" type="button">✕</button>
+    </div>
+    <div class="modal-body">
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;">
+        <button class="btn" id="fs-up" type="button">Up</button>
+        <input id="fs-path" class="input" style="flex:1;" />
+        <button class="btn" id="fs-go" type="button">Go</button>
+      </div>
+      <div id="fs-drives" class="flex" style="flex-wrap:wrap;gap:6px;margin-bottom:8px;"></div>
+      <div id="fs-list" style="display:grid;grid-template-columns:repeat(auto-fill, minmax(240px,1fr));gap:8px;"></div>
+      <div style="margin-top:12px;display:flex;justify-content:flex-end;">
+        <button class="btn" id="fs-select" type="button">Choose this folder</button>
+      </div>
+    </div>
+  </div>
+</div>
+<script src="{{ url_for('static', filename='js/albums.js') }}"></script>
+
+
+<!-- Wait modal -->
+<div id="wait-modal" class="modal hidden" role="dialog" aria-modal="true">
+  <div class="modal-backdrop"></div>
+  <div class="modal-card" style="max-width:420px;">
+    <div class="modal-header">
+      <div class="modal-title">Working…</div>
+      <button class="btn" id="wait-cancel" type="button" disabled>✕</button>
+    </div>
+    <div class="modal-body" style="display:flex;gap:12px;align-items:center;">
+      <div class="spinner" aria-hidden="true"></div>
+      <div>Please wait while we scan your album and load photos. This can take a while for large folders.</div>
+    </div>
+  </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/albums.js') }}"></script>
+{% endblock %}
+
+
+<!-- Meta modal -->
+<div id="meta-modal" class="modal hidden">
+  <div class="modal-backdrop" onclick="closeMeta()"></div>
+  <div class="modal-card">
+    <div class="modal-header">
+      <div class="modal-title">Album Info</div>
+      <button class="btn" onclick="closeMeta()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div><strong>Name:</strong> <span id="m-name"></span></div>
+      <div><strong>Created:</strong> <span id="m-created"></span></div>
+      <div><strong>Photos:</strong> <span id="m-count"></span></div>
+      <div><strong>Path:</strong> <code id="m-path"></code></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const modal = document.getElementById('meta-modal');
+async function openMeta(id){
+  try{
+    const res = await fetch(`/api/albums/${id}/meta`);
+    if(!res.ok) throw new Error('Failed');
+    const data = await res.json();
+    document.getElementById('m-name').textContent = data.name || '';
+    document.getElementById('m-created').textContent = data.created_at ? new Date(data.created_at).toLocaleString() : '-';
+    document.getElementById('m-count').textContent = data.photo_count ?? '0';
+    document.getElementById('m-path').textContent = data.path || '';
+    modal.classList.remove('hidden');
+  }catch(e){
+    alert('Could not load album info.');
+  }
+}
+function closeMeta(){ modal.classList.add('hidden'); }
+</script>
+
+

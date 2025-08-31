@@ -1,0 +1,128 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="card" style="margin-bottom:16px;">
+  <div class="flex" style="justify-content:space-between;">
+    <div>
+      <div style="font-weight:700;font-size:20px;">
+        <span id="album-name-text">{{ album.name }}</span>
+        <button class="btn" id="btn-rename-toggle" title="Rename">✎</button>
+      </div>
+      <div id="rename-block" class="flex" style="margin-top:8px;display:none;">
+        <input id="rename-input" class="input" style="max-width:280px" value="{{ album.name }}"/>
+        <button class="btn" id="btn-rename-save">Save</button>
+        <button class="btn" id="btn-rename-cancel">Cancel</button>
+      </div>
+      <div class="text-muted">{{ album.path }}</div>
+    </div>
+    <div class="flex">
+      <a class="btn" href="{{ url_for('album_all', album_id=album.id) }}">See all ({{ photo_count }})</a>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div style="font-weight:700;margin-bottom:8px;">Days</div>
+  {% if day_labels %}
+  <div class="grid">
+    {% for day in day_labels %}
+    <div class="card">
+      <div style="font-weight:600;margin-bottom:6px;">{{ day }}</div>
+      <a class="btn" href="{{ url_for('album_day', album_id=album.id, day_label=day) }}">Open</a>
+    </div>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="text-muted">No day folders detected. You can still use "See all".</div>
+  {% endif %}
+</div>
+
+<script>
+(function(){
+  const toggle = document.getElementById('btn-rename-toggle');
+  const block = document.getElementById('rename-block');
+  const save = document.getElementById('btn-rename-save');
+  const cancel = document.getElementById('btn-rename-cancel');
+  const input = document.getElementById('rename-input');
+  const nameText = document.getElementById('album-name-text');
+  const albumId = {{ album.id }};
+
+  function showBlock(){ block.style.display = 'flex'; input && input.focus(); }
+  function hideBlock(){ block.style.display = 'none'; }
+
+  toggle && toggle.addEventListener('click', ()=>{
+    if(!block) return;
+    if(block.style.display === 'none' || !block.style.display){ showBlock(); } else { hideBlock(); }
+  });
+  cancel && cancel.addEventListener('click', ()=>{
+    hideBlock();
+    if(input) input.value = nameText ? nameText.textContent.trim() : '';
+  });
+  save && save.addEventListener('click', async ()=>{
+    const newName = (input && input.value || '').trim();
+    if(!newName){ alert('Please enter a name.'); return; }
+    try{
+      const res = await fetch(`/api/albums/${albumId}/rename`, {
+        method:'PATCH',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({name:newName})
+      });
+      if(res.status===409){
+        alert('An album with this name already exists.'); return;
+      }
+      if(!res.ok){ throw new Error('Failed'); }
+      const data = await res.json();
+      if(nameText) nameText.textContent = data.name;
+      hideBlock();
+      const active = document.querySelector('.side-list li.active a');
+      if(active){ active.textContent = data.name; }
+      document.title = data.name + ' — Local Photo Album';
+    }catch(e){
+      alert('Rename failed.');
+    }
+  });
+})();
+</script>
+
+{% endblock %}
+
+
+<script>
+(function(){
+  const toggle = document.getElementById('btn-rename-toggle');
+  const block = document.getElementById('rename-block');
+  const save = document.getElementById('btn-rename-save');
+  const cancel = document.getElementById('btn-rename-cancel');
+  const input = document.getElementById('rename-input');
+  const nameText = document.getElementById('album-name-text');
+  const albumId = {{ album.id }};
+
+  toggle && toggle.addEventListener('click', ()=>{
+    block.style.display = block.style.display==='none' ? 'flex' : 'none';
+    input && input.focus();
+  });
+  cancel && cancel.addEventListener('click', ()=>{
+    block.style.display = 'none';
+    input.value = nameText.textContent.trim();
+  });
+  save && save.addEventListener('click', async ()=>{
+    const newName = (input.value||'').trim();
+    if(!newName){ alert('Please enter a name.'); return; }
+    try{
+      const res = await fetch(`/api/albums/${albumId}/rename`, {
+        method:'PATCH',
+        headers:{'Content-Type':'application/json'},
+        body: JSON.stringify({name:newName})
+      });
+      if(res.status===409){
+        alert('An album with this name already exists.'); return;
+      }
+      if(!res.ok){ throw new Error('Failed'); }
+      const data = await res.json();
+      nameText.textContent = data.name;
+      block.style.display = 'none';
+    }catch(e){
+      alert('Rename failed.');
+    }
+  });
+})();
+</script>
